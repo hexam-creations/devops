@@ -1,0 +1,76 @@
+name: Java Deploy
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: null
+      java-version:
+        required: false
+        type: string
+        default: "20"
+      java-distribution:
+        required: false
+        type: string
+        default: "temurin"
+      jre-cache:
+        required: false
+        type: string
+        default: "maven"
+      service:
+        required: true
+        type: string
+      service-port:
+        required: false
+        type: number
+        default: 8080
+      consul-host:
+        required: false
+        type: string
+        default: "consul"
+      consul-port:
+        required: false
+        type: number
+        default: 8500
+      deploy-dir:
+        required: true
+        type: string
+    secrets:
+      mvn-token:
+        required: true
+      mvn-user:
+        required: true
+jobs:
+  build:
+    uses: .github/workflows/java-build.yaml@main
+    with:
+      service: ${{ inputs.service }}
+      service-port: ${{ inputs.service-port }}
+      version: ${{inputs.version }}
+      java-version: ${{ inputs.java-version }}
+      java-distribution: ${{ inputs.java-distribution }}
+      consul-host: ${{ inputs.consul-host }}
+      consul-port: ${{ inputs.consul-port }}
+    secrets:
+      mvn-token: ${{ secrets.mvn-token }}
+      mvn-user: ${{ secrets.mvn-user }}
+    permissions:
+      id-token: write
+      contents: read
+  deploy:
+    needs: build
+    uses: .github/workflows/vps-docker-deploy.yaml@main
+    with:
+      service: ${{ inputs.service }}
+      deploy-host: "${{ inputs.service }}.hexam"
+      deploy-host-ip: ${{ inputs.deploy-host-ip }}
+      deploy-host-port: ${{ inputs.deploy-host-port }}
+      deploy-dir: ${{ inputs.deploy-dir }}
+      tag: ${{ inputs.version || github.sha }}
+    secrets:
+      deploy-ssh-private-key: ${{ secrets.deploy-ssh-private-key }}
+    permissions:
+      id-token: write
+      contents: read

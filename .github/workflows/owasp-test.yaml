@@ -1,0 +1,73 @@
+name: Dependency Check and Notify
+
+on:
+  workflow_call:
+    inputs:
+      checker-version:
+        required: false
+        type: string
+        default: 10.0.2
+      node-version:
+        required: false
+        type: string
+        default: 20.3.0
+      project:
+        required: false
+        type: string
+        default: Vue.js Project
+      report-cc:
+        required: false
+        type: string
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install OWASP Dependency-Check
+        run: |
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v${{ inputs.checker-version }}/dependency-check-${{ inputs.checker-version }}-release.zip
+          unzip dependency-check-${{ inputs.checker-version }}-release.zip -d dependency-check
+          sudo ln -s $PWD/dependency-check/bin/dependency-check.sh /usr/local/bin/dependency-check
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Run OWASP Dependency-Check
+        run: |
+          mkdir -p owasp-report
+          dependency-check --project "${{ inputs.project }}" --scan . --format "ALL" --out owasp-report
+
+      - name: Upload OWASP Dependency-Check report
+        uses: actions/upload-artifact@v3
+        with:
+          name: owasp-report
+          path: owasp-report
+
+      - name: Send email if vulnerabilities found
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER_ADDRESS }}
+          server_port: ${{ secrets.SMTP_SERVER_PORT || 587 }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: 'OWASP Dependency-Check Report for ${{ github.repository }}'
+          body: |
+            Hi ${{ github.event.head_commit.author.name }},
+            
+            The OWASP Dependency-Check report for your recent commit [https://github.com/${{ github.repository }}/commit/${{ github.sha }}] is attached.
+            
+            Please review the attached report for any vulnerabilities.
+          to: ${{ github.event.head_commit.author.email }}
+          from: ${{ secrets.SMTP_SENDER_EMAIL }}
+          cc: ${{ inputs.report-cc }}
+          attachments: owasp-report/dependency-check-report.html

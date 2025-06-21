@@ -1,0 +1,76 @@
+name: Goose (Tests)
+on:
+  push:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      git-token:
+        required: true
+      git-user:
+        required: true
+jobs:
+  goose-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    services:
+      postgres:
+        image: postgres:${{ vars.GOOSE_POSTGRES_VERSION || 16 }}
+        env:
+          POSTGRES_USER: ${{ vars.GOOSE_DB_USERNAME || 'hexam' }}
+          POSTGRES_PASSWORD: ${{ vars.GOOSE_DB_PASSWORD || 'hexam' }}
+          POSTGRES_DB: ${{ vars.GOOSE_DB_NAME || 'hexam' }}
+        ports:
+          - ${{ vars.GOOSE_DB_PORT || 5432 }}:5432
+    env:
+      POSTGRES_DB_HOST: ${{ vars.GOOSE_DB_HOST || '127.0.0.1' }}
+      POSTGRES_DB_DRIVER: ${{ vars.GOOSE_DB_DRIVER || 'postgres' }}
+      POSTGRES_DB_DATABASE: ${{ vars.GOOSE_DB_NAME || 'hexam' }}
+      POSTGRES_DB_USERNAME: ${{ vars.GOOSE_DB_USERNAME || 'hexam' }}
+      POSTGRES_DB_PASSWORD: ${{ vars.GOOSE_DB_PASSWORD || 'hexam' }}
+      POSTGRES_DB_PORT: ${{ vars.GOOSE_DB_PORT || 5432 }}
+      PGPASSWORD: ${{ vars.GOOSE_DB_PASSWORD || 'hexam' }}
+      GO_CACHE_KEY: go-home-goose-${{ vars.GO_VERSION || 1.22 }}
+      GO_CACHE_DIR: /home/runner/go/
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ vars.GO_VERSION || 1.22  }}
+          token: ${{ secrets.git-token }}
+          cache: true
+      - name: Restore Go Dependencies
+        id: restore-go-mod
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{env.GO_CACHE_KEY }}
+          path: ${{ env.GO_CACHE_DIR }}
+
+      - name: Configure Netrc
+        uses: extractions/netrc@v2
+        with:
+          machine: github.com
+          username: ${{ secrets.git-user }}
+          password: ${{ secrets.git-token }}
+      - if: steps.restore-go-mod.outputs.cache-hit != 'true'
+        run: |
+          go install github.com/pressly/goose/v3/cmd/goose@latest
+          goose -version
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: ${{ vars.SQLC_VERSION || '1.25.0'  }}
+      - uses: actions/checkout@v4
+      - run: sqlc generate
+      - run: go test ./...
+      - name: Save Go Dependencies
+        uses: actions/cache/save@v4
+        if: steps.restore-go-mod.outputs.cache-hit != 'true'
+        with:
+          key: ${{ env.GO_CACHE_KEY }}
+          path: ${{ env.GO_CACHE_DIR }}
+      - name: Install Postgres Extensions
+        run: |
+          echo 'create extension if not exists "uuid-ossp"' | psql -h ${{ env.POSTGRES_DB_HOST }} -U ${{ env.POSTGRES_DB_USERNAME }} -d ${{ env.POSTGRES_DB_DATABASE }}
+          echo 'create extension if not exists "moddatetime"' | psql -h ${{ env.POSTGRES_DB_HOST }} -U ${{ env.POSTGRES_DB_USERNAME }} -d ${{ env.POSTGRES_DB_DATABASE }}
+      - run: make migrate-up
+      - run: make migrate-reset

@@ -1,0 +1,55 @@
+name: Go Tests
+env:
+  GOPRIVATE: "github.com/hexam-creations"
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: "1.22.0"
+      package:
+        required: false
+        type: string
+        default: "./..."
+      vulnerability-cc:
+        required: false
+        type: string
+      run-vulncheck:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      git-token:
+        required: true
+      git-user:
+        required: true
+jobs:
+  code-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          token: ${{ secrets.git-token }}
+          go-version: ${{ inputs.version }}
+          cache: true
+      - name: Configure Netrc
+        uses: extractions/netrc@v2
+        with:
+          machine: github.com
+          username: ${{ secrets.git-user }}
+          password: ${{ secrets.git-token }}
+      - name: Download dependencies
+        run: go mod download
+      - name: Run tests
+        run: go test ${{ inputs.package }}
+      - name: Run vulncheck
+        if: ${{ inputs.run-vulncheck == true }}
+        uses: go-vulncheck
+        with:
+          package: ${{ inputs.package}}
+          report-cc: ${{ inputs.vulnerability-cc }}
