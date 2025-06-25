@@ -43,7 +43,7 @@ on:
         required: true
 jobs:
   build:
-    uses: .github/workflows/go-build.yaml@main
+    uses: ./go-build.yaml
     with:
       service: ${{ inputs.service }}
       version: ${{ inputs.version }}
@@ -60,7 +60,7 @@ jobs:
       contents: read
   deploy:
     needs: build
-    uses: .github/workflows/vps-docker-deploy.yaml@main
+    uses: ./vps-docker-deploy.yaml
     with:
       service: ${{ inputs.service }}
       deploy-host: "${{ inputs.service }}.hexam"
