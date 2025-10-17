@@ -9,7 +9,7 @@ on:
       version:
         required: false
         type: string
-        default: "develop"
+        default: null
       go-version:
         required: false
         type: string
@@ -27,7 +27,11 @@ on:
       migration-path:
         required: false
         type: string
-        default: "./sql/migrations"
+        default: "sql/migrations"
+      dispatch-workflow-url:
+        required: false
+        type: string
+        default: ""
     secrets:
       git-token:
         required: true
@@ -82,13 +86,13 @@ jobs:
           FROM ${{ env.DOCKERFILE_BUILDER_IMG }} as builder
           RUN apk add --no-cache ca-certificates tzdata
           FROM gomicro/goose:3.24.1 as gooze
-          FROM scratch
+          FROM alpine
           WORKDIR /
           COPY ${{ env.OUTPUT_BIN }} .
           COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
           COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
           COPY --from=gooze /bin/goose /bin/goose
-          COPY ${{ inputs.migration-path }} /sql/migrations/
+          COPY ${{ inputs.migration-path }} /sql/migrations
           ENV APP_HTTP_PORT=${{ inputs.service-port }}
           ENV VERSION=${{ inputs.service }}-${{ inputs.version || env.GITHUB_SHA_SHORT }}
           ENV SOURCE=github.com/${{ github.repository }}@${{ inputs.version || env.GITHUB_SHA_SHORT }}
@@ -107,3 +111,11 @@ jobs:
             ${{ env.DOCKERHUB_REPO }}:${{ env.SERVICE_BUILD }}
             ${{ env.DOCKERHUB_REPO }}:${{ env.GITHUB_SHA_SHORT }}
             ${{ env.DOCKERHUB_REPO }}:latest
+      - name: Link to Deploy Workflow
+        if: success() && inputs.dispatch-workflow-url != ''
+        env:
+          DEPLOY_URL: "${{ inputs.dispatch-workflow-url }}?query=workflow_dispatch&tag=${{ env.GITHUB_SHA_SHORT }}"
+        run: |
+          echo "## 🚀 [**Deploy this Build**](${{ env.DEPLOY_URL }})" >> $GITHUB_STEP_SUMMARY
+          echo "- Copy the tag (${{ env.GITHUB_SHA_SHORT }}) before clicking the link above" >> $GITHUB_STEP_SUMMARY
+          echo "- You will need to provide the tag (${{ env.GITHUB_SHA_SHORT }}) to deploy this version" >> $GITHUB_STEP_SUMMARY

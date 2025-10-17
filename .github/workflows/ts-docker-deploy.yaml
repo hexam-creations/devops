@@ -11,52 +11,66 @@ on:
         required: false
         type: string
         default: ${{ github.sha }}
-      deploy-host-ip:
-        required: false
+      host-ip:
+        required: true
         type: string
-        default: '100.102.135.11'
-      deploy-host-port:
+      host-port:
         required: false
         type: number
         default: 22
-      deploy-user:
+      ssh-user:
         required: false
         type: string
-        default: github
-      deploy-dir:
+        default: 'github'
+      docker-compose-dir:
         required: true
         type: string
+      tailscale-server:
+        required: false
+        type: string
+        default: 'controlplane.tailscale.com'
+      tailscale-tags:
+        required: false
+        type: string
+        default: 'tag:ci'
     secrets:
+      ts-auth-key:
+        required: true
       ssh-private-key:
         required: true
-      tailscale-auth-key:
-        required: true
 jobs:
-  tailscale-docker-deploy:
+  docker-compose-via-tailscale:
     runs-on: ubuntu-latest
     permissions: 
       id-token: write
       contents: read
     env:
-      DEPLOY_HOST: "${{ inputs.service }}.hexam.dev"
+      DEPLOY_HOST: "${{ inputs.service }}.service.govnet"
     steps:
-      - name: Init Connection to Hexam Infrastructure
-        uses: tailscale/github-action@v2
+      - name: Set short variables
+        run: |
+          echo "GITHUB_SHA_SHORT=`git rev-parse --short ${{ github.sha }}`" >> $GITHUB_ENV
+          echo "GITHUB_BRANCH_SHORT=`git branch --show-current | sed 's/\//_/g' | tr -d ' ' | cut -c 1-10`" >> $GITHUB_ENV
+      - name: Connect to Tailnet
+        uses: tailscale/github-action@v3
         with:
-          authkey: ${{ secrets.tailscale-auth-key }}
-      - name: Configure Host SSH
+          use-cache: 'true'
+          authkey: ${{ secrets.ts-auth-key }}
+          # tags: ${{.inputs.tailscale-tags }}
+          args: '--login-server https://${{ inputs.tailscale-server }} --hostname=github-runner-${{ env.GITHUB_BRANCH_SHORT }}-${{ github.run_id }}'
+      - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
-          name: hexam_github
-          known_hosts: placeholder
+          key: ${{ secrets.ssh-private-key }}
+          name: govnet_github
+          known_hosts: i-will-change-shortly
           config: |
             Host ${{ env.DEPLOY_HOST }}
-              Port ${{ inputs.deploy-host-port }}
-              HostName ${{ inputs.deploy-host-ip }}
-              User ${{ inputs.deploy-user }}
-              IdentityFile ~/.ssh/hexam_github
-          key: ${{ secrets.ssh-private-key }}
+              Port ${{ inputs.host-port }}
+              HostName ${{ inputs.host-ip }}
+              User ${{ inputs.ssh-user }}
+              IdentityFile ~/.ssh/govnet_github
       - name: Overwrite known hosts of ${{ env.DEPLOY_HOST }}
-        run: ssh-keyscan -p ${{inputs.deploy-host-port}} ${{ inputs.deploy-host-ip }} > ~/.ssh/known_hosts
-      - name: Deploy ${{ inputs.service }} with docker
-        run: ssh ${{ env.DEPLOY_HOST }} "make -C ${{ inputs.deploy-dir }} deploy-service-tag service=${{ inputs.service }} tag=${{ inputs.tag }}"
+        run: ssh-keyscan -p ${{ inputs.host-port }} ${{ inputs.host-ip }} > ~/.ssh/known_hosts
+      - name: Deploy ${{ inputs.service }} with docker-compose
+        run: ssh ${{ env.DEPLOY_HOST }} "make -C ${{ inputs.docker-compose-dir }} deploy-service-tag service=${{ inputs.service }} tag=${{ inputs.tag }}"

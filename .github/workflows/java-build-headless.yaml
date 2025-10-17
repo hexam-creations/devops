@@ -36,12 +36,6 @@ on:
         required: false
         type: string
         default: "eclipse-${{ inputs.java-distribution }}:${{ inputs.java-version }}-jre"
-      consul-host:
-        required: true
-        type: string
-      consul-port:
-        required: true
-        type: number
     secrets:
       mvn-token:
         required: true
@@ -142,12 +136,12 @@ jobs:
           RUN adduser --system --ingroup govnet --shell /bin/sh --disabled-password --no-create-home hexam-user
           RUN chown -R hexam-user:govnet /app
           USER hexam-user
-          COPY target/*.jar /app/app.jar
+          COPY target/*.jar /app/${{ inputs.service }}.jar
           ENV APP_PORT=${{ inputs.service-port }}
           ENV BUILD=${{ env.SERVICE_BUILD }}
           ENV VERSION=${{ inputs.service }}-${{ inputs.version || env.GITHUB_SHA_SHORT }}
           EXPOSE ${{ inputs.service-port }}
-          ENTRYPOINT ["java", "-Djava.security.egd=file:/prod/./urandom", "-jar", "/app/app.jar"]
+          ENTRYPOINT ["java", "-Djava.security.egd=file:/prod/./urandom", "-jar", "/app/${{ inputs.service }}.jar"]
           EOF
       - name: Set docker branch tag
         run: |

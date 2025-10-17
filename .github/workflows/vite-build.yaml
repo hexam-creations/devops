@@ -13,9 +13,6 @@ on:
         required: false
         type: string
         default: ${{ vars.NODE_VERSION || 'v20.3.0' }}
-      working-dir:
-        type: string
-        default: ./
     secrets:
       npm-token:
         required: false
@@ -33,14 +30,13 @@ jobs:
         uses: actions/cache@v4
         with:
           key: build-${{ github.sha }}
-          path: ${{ inputs.working-dir }}/dist
+          path: ./dist
       - uses: actions/setup-node@v4
         if: steps.cache-npm-build.outputs.cache-hit != 'true'
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
           token: ${{ secrets.npm-token }}
-          cache-dependency-path: '**/package-lock.json' 
       - name: Authenticate ${{ github.repository_owner }} npm lib
         env: 
           NPM_TOKEN: ${{ secrets.npm-token }}
@@ -50,7 +46,7 @@ jobs:
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.npm-token }}" >> .npmrc
       - name: Download ${{ inputs.portal }} dependencies
         if: steps.cache-npm-build.outputs.cache-hit != 'true'
-        run: npm --prefix ${{ inputs.working-dir }} i
+        run: npm i
       - name: Build ${{ inputs.portal }} dependencies
         if: steps.cache-npm-build.outputs.cache-hit != 'true'
-        run: npm run --prefix ${{ inputs.working-dir }} build
+        run: npm run build

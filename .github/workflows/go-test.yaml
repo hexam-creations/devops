@@ -1,6 +1,6 @@
 name: Go Tests
 env:
-  GOPRIVATE: "github.com/hexam-creations"
+  GOPRIVATE: "github.com/hexam-*"
 on:
   workflow_call:
     inputs:
@@ -8,24 +8,13 @@ on:
         required: false
         type: string
         default: "1.22.0"
-      package:
-        required: false
-        type: string
-        default: "./..."
-      vulnerability-cc:
-        required: false
-        type: string
-      run-vulncheck:
-        required: false
-        type: boolean
-        default: false
     secrets:
       git-token:
         required: true
       git-user:
         required: true
 jobs:
-  code-test:
+  go-test:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -46,10 +35,4 @@ jobs:
       - name: Download dependencies
         run: go mod download
       - name: Run tests
-        run: go test ${{ inputs.package }}
-      - name: Run vulncheck
-        if: ${{ inputs.run-vulncheck == true }}
-        uses: go-vulncheck
-        with:
-          package: ${{ inputs.package}}
-          report-cc: ${{ inputs.vulnerability-cc }}
+        run: go test ./...

@@ -44,7 +44,7 @@ on:
         required: true
 jobs:
   build:
-    uses: .github/workflows/java-build.yaml@main
+    uses: hexam-creations/devops/.github/workflows/java-build.yaml@v3
     with:
       service: ${{ inputs.service }}
       service-port: ${{ inputs.service-port }}
@@ -61,10 +61,10 @@ jobs:
       contents: read
   deploy:
     needs: build
-    uses: .github/workflows/vps-docker-deploy.yaml@main
+    uses: hexam-creations/devops/.github/workflows/vps-docker-deploy.yaml@v3
     with:
       service: ${{ inputs.service }}
-      deploy-host: "${{ inputs.service }}.hexam"
+      deploy-host: "${{ inputs.service }}.govnet"
       deploy-host-ip: ${{ inputs.deploy-host-ip }}
       deploy-host-port: ${{ inputs.deploy-host-port }}
       deploy-dir: ${{ inputs.deploy-dir }}

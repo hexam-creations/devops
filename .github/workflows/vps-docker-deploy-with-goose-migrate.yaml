@@ -1,6 +1,6 @@
 name: Deploy to docker host
-
-on:
+  
+on: 
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -14,7 +14,7 @@ on:
       deploy-host:
         required: false
         type: string
-        default: "${{ inputs.service }}.hexam"
+        default: "${{ inputs.service }}.govnet"
       deploy-host-ip:
         required: true
         type: string
@@ -24,19 +24,19 @@ on:
       deploy-user:
         required: false
         type: string
-        default: "github-actions"
+        default: 'github-actions'
       deploy-dir:
         required: false
         type: string
-        default: "/deploy/hexam"
+        default: '/deploy/govnet'
       migrator-version:
         required: false
         type: string
-        default: "202502"
+        default: '202502'
       migration-path:
         required: false
         type: string
-        default: "./sql/migrations"
+        default: './sql/migrations'
     secrets:
       deploy-ssh-private-key:
         required: true
@@ -50,27 +50,27 @@ on:
         required: true
       db-database:
         required: true
-
+      
 jobs:
   docker-compose:
     runs-on: ubuntu-latest
-    permissions:
+    permissions: 
       id-token: write
       contents: read
-    env:
-      DEPLOY_HOST: ${{ inputs.service }}.hexam
+    env: 
+      DEPLOY_HOST: ${{ inputs.service }}.govnet
     steps:
       - name: Configure Host SSH
         uses: shimataro/ssh-key-action@v2
         with:
-          name: hexam_github
+          name: govnet_github
           known_hosts: replace-me
           config: |
             Host ${{ env.DEPLOY_HOST }}
               HostName ${{ inputs.deploy-host-ip }}
               User ${{ inputs.deploy-user }}
               Port ${{ inputs.deploy-host-port }}
-              IdentityFile ~/.ssh/hexam_github
+              IdentityFile ~/.ssh/govnet_github
               ForwardAgent yes
           key: ${{ secrets.deploy-ssh-private-key }}
       - name: Overwrite known hosts of ${{ env.DEPLOY_HOST}}
@@ -87,12 +87,12 @@ jobs:
         run: |
           docker run --rm --network host \
             -v ${{ inputs.migration-path }}:/app/scripts:ro \
-            -e POSTGRES_DB_USERNAME=${{ secrets.db-username }} \
-            -e POSTGRES_DB_PASSWORD=${{ secrets.db-password }} \
-            -e POSTGRES_DB_HOST=127.0.0.1 \
-            -e POSTGRES_DB_PORT=${{ secrets.db-port }} \
-            -e POSTGRES_DB_DATABASE=${{ secrets.db-database }} \
-            -e POSTGRES_DB_DRIVER=postgres \
+            -e GOVNET_DB_USERNAME=${{ secrets.db-username }} \
+            -e GOVNET_DB_PASSWORD=${{ secrets.db-password }} \
+            -e GOVNET_DB_HOST=127.0.0.1 \
+            -e GOVNET_DB_PORT=${{ secrets.db-port }} \
+            -e GOVNET_DB_DATABASE=${{ secrets.db-database }} \
+            -e GOVNET_DB_DRIVER=postgres \
             ${{ env.MIGRATOR_DOCER_IMG}} \
             sh -c "make -C /app migrate-up service=${{ inputs.service }}"
       - name: Close SSH tunnel

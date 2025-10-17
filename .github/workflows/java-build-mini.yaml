@@ -98,7 +98,7 @@ jobs:
                         </snapshots>
                       </repository>
                       <repository>
-                        <id>hexam</id>
+                        <id>govnet</id>
                         <url>https://maven.pkg.github.com/hexam-libraries/govbill-java-cli</url>
                         <snapshots>
                             <enabled>true</enabled>
@@ -115,7 +115,7 @@ jobs:
                   <password>${{ secrets.mvn-token }}</password>
                 </server>
                 <server>
-                  <id>hexam</id>
+                  <id>govnet</id>
                   <username>${{ secrets.mvn-user }}</username>
                   <password>${{ secrets.mvn-token }}</password>
                 </server>

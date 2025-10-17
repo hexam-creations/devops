@@ -1,6 +1,6 @@
 name: Deploy to docker host
-
-on:
+  
+on: 
   workflow_dispatch:
   workflow_call:
     inputs:
@@ -14,7 +14,7 @@ on:
       deploy-host:
         required: false
         type: string
-        default: "${{ inputs.service }}.hexam"
+        default: "${{ inputs.service }}.govnet"
       deploy-host-ip:
         required: true
         type: string
@@ -24,32 +24,32 @@ on:
       deploy-user:
         required: false
         type: string
-        default: "github-actions"
+        default: 'github-actions'
       deploy-dir:
         required: false
         type: string
-        default: "/deploy/hexam"
+        default: '/deploy/govnet'
     secrets:
       deploy-ssh-private-key:
         required: true
 jobs:
   docker-compose:
     runs-on: ubuntu-latest
-    permissions:
+    permissions: 
       id-token: write
       contents: read
     steps:
       - name: Configure Host SSH
         uses: shimataro/ssh-key-action@v2
         with:
-          name: hexam_github
+          name: govnet_github
           known_hosts: replace-me
           config: |
             Host ${{ inputs.deploy-host }}
               HostName ${{ inputs.deploy-host-ip }}
               User ${{ inputs.deploy-user }}
               Port ${{ inputs.deploy-host-port }}
-              IdentityFile ~/.ssh/hexam_github
+              IdentityFile ~/.ssh/govnet_github
               ForwardAgent yes
           key: ${{ secrets.deploy-ssh-private-key }}
       - name: Overwrite known hosts of ${{ inputs.deploy-host }}

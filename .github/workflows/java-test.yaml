@@ -15,20 +15,13 @@ on:
         required: false
         type: string
         default: "maven"
-      vulnerability-cc:
-        required: false
-        type: string
-      run-vulncheck:
-        required: false
-        type: boolean
-        default: false
     secrets:
       mvn-token:
         required: true
       mvn-user:
         required: true
 jobs:
-  code-test:
+  java-test:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -60,7 +53,14 @@ jobs:
                         <url>https://repo1.maven.org/maven2</url>
                       </repository>
                       <repository>
-                        <id>hexam</id>
+                        <id>govpay</id>
+                        <url>https://maven.pkg.github.com/hexam-creations/govpay</url>
+                        <snapshots>
+                            <enabled>true</enabled>
+                        </snapshots>
+                      </repository>
+                      <repository>
+                        <id>govnet</id>
                         <url>https://maven.pkg.github.com/hexam-libraries/govbill-java-cli</url>
                         <snapshots>
                             <enabled>true</enabled>
@@ -69,9 +69,15 @@ jobs:
                   </repositories>
                 </profile>
             </profiles>
+
             <servers>
                 <server>
-                  <id>hexam</id>
+                  <id>govpay</id>
+                  <username>${{ secrets.mvn-user }}</username>
+                  <password>${{ secrets.mvn-token }}</password>
+                </server>
+                <server>
+                  <id>govnet</id>
                   <username>${{ secrets.mvn-user }}</username>
                   <password>${{ secrets.mvn-token }}</password>
                 </server>
@@ -82,8 +88,3 @@ jobs:
         run: mvn -B package --file pom.xml
       - name: Test with ${{ inputs.jre-cache }}
         run: mvn test --file pom.xml
-      - name: Run vulncheck
-        if: ${{ inputs.run-vulncheck == true }}
-        uses: java-synk-test
-        with:
-          report-cc: ${{ inputs.vulnerability-cc}}

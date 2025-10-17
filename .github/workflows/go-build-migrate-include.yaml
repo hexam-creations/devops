@@ -24,6 +24,14 @@ on:
       go-file:
         type: string
         default: ./main.go
+      migration-path:
+        required: false
+        type: string
+        default: "sql/migrations"
+      include-path:
+        required: false
+        type: string
+        default: "README.md"
     secrets:
       git-token:
         required: true
@@ -76,12 +84,14 @@ jobs:
         run: |
           cat <<EOF > Dockerfile 
           FROM ${{ env.DOCKERFILE_BUILDER_IMG }} as builder
-          RUN apk add --no-cache ca-certificates tzdata
-          FROM scratch
+          FROM gomicro/goose:3.24.1 as gooze
+          FROM alpine
+          RUN apk add --no-cache openjdk17-jre ca-certificates tzdata
           WORKDIR /
           COPY ${{ env.OUTPUT_BIN }} .
-          COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-          COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+          COPY --from=gooze /bin/goose /bin/goose
+          COPY ${{ inputs.migration-path }} /sql/migrations
+          COPY ${{ inputs.include-path }} /${{ inputs.include-path }}
           ENV APP_HTTP_PORT=${{ inputs.service-port }}
           ENV VERSION=${{ inputs.service }}-${{ inputs.version || env.GITHUB_SHA_SHORT }}
           ENV SOURCE=github.com/${{ github.repository }}@${{ inputs.version || env.GITHUB_SHA_SHORT }}
